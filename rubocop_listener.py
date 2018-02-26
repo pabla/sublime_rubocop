@@ -75,7 +75,7 @@ class RubocopEventListener(sublime_plugin.EventListener):
     view.add_regions(REGIONS_ID, lines, 'keyword', icon,
         REGIONS_OPTIONS_BITS)
 
-  def run_rubocop(self, view):
+  def run_rubocop(self, view, cmd_args):
     s = sublime.load_settings(SETTINGS_FILE)
 
     rubocop_disable = view.settings().get(
@@ -111,21 +111,24 @@ class RubocopEventListener(sublime_plugin.EventListener):
         'is_st2': sublime.version() < '3000'
       }
     )
-    output = runner.run([view.file_name()], ['--format', 'emacs']).splitlines()
-
+    output = runner.run([view.file_name()], cmd_args).splitlines()
     return output
-
-  def mark_issues(self, view, mark):
-    self.clear_marks(view)
-    if mark:
-      results = self.run_rubocop(view)
-      self.set_marks_by_results(view, results)
 
   def do_in_file_check(self, view):
     if not FileTools.is_ruby_file(view):
       return
-    mark = sublime.load_settings(SETTINGS_FILE).get('mark_issues_in_view')
-    self.mark_issues(view, mark)
+    settings = sublime.load_settings(SETTINGS_FILE)
+    mark_issues_in_view = settings.get('mark_issues_in_view')
+    auto_correct_on_save = settings.get('auto_correct_on_save')
+    cmd_args = ['--format', 'emacs']
+    if auto_correct_on_save:
+      cmd_args.append('-a')
+    if mark_issues_in_view:
+      self.clear_marks(view)
+    if mark_issues_in_view or auto_correct_on_save:
+      results = self.run_rubocop(view, cmd_args)
+      if mark_issues_in_view:
+        self.set_marks_by_results(view, results)
 
   def on_post_save(self, view):
     if sublime.version() >= '3000':
